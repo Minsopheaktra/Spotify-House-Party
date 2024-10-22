@@ -22,17 +22,45 @@ function Form({ route, method }) {
             if (method === "login") {
                 localStorage.setItem(ACCESS_TOKEN, res.data.access);
                 localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
-                console.log('Tokens stored:', { access: res.data.access, refresh: res.data.refresh });
                 navigate("/");
             } else {
                 navigate("/login")
             }
         } catch (error) {
-            alert(error)
+            console.log(error);
+            if (method === "login") {
+                alert("Login failed. Please check your credentials and try again.");
+            } else {
+                alert("Registration failed. Please try again or use a different username.");
+            }
         } finally {
             setLoading(false)
         }
     };
+
+    const renderRegisterButton = () => {
+        if (method === "login") {
+            return (
+                <>
+                    <p>Not yet a member?</p>
+                    <button className="form-button" onClick={() => navigate("/register")}>
+                        Register
+                    </button>
+                </>
+            )
+        }
+    }
+    
+    const renderLoginButton = () => {
+        if (method === "register") {
+            return (
+                <>
+                    <p>Already a member?</p>
+                    <button className="form-button" onClick={() => navigate("/login")}>Login</button>
+                </>
+            )
+        }
+    }
 
     return (
         <form onSubmit={handleSubmit} className="form-container">
@@ -55,6 +83,8 @@ function Form({ route, method }) {
             <button className="form-button" type="submit">
                 {name}
             </button>
+            {renderRegisterButton()}
+            {renderLoginButton()}
         </form>
     );
 }

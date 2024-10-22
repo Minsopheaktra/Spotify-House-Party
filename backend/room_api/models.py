@@ -17,7 +17,7 @@ def generate_unique_code():
         ):  # if code is unique break while loop
             break
 
-    return code  # return the unique code
+    return code  # return the unique code/roomcode
 
 
 # Create your models here.
@@ -29,6 +29,7 @@ class Room(models.Model):
     guest_can_pause = models.BooleanField(null=False, default=False)
     votes_to_skip = models.IntegerField(null=False, default=1)
     created_at = models.DateTimeField(auto_now_add=True)
+    users = models.ManyToManyField(User, related_name="users")  # users in room
 
     def __str__(self):
         return self.code

@@ -48,12 +48,6 @@ function Room({ leaveRoomCallback }) {
 		fetchRoomDetails();
 	  }, [fetchRoomDetails]);
 
-	useEffect(() => {
-		if (isHost) {
-			authenticateSpotify();
-		}
-	}, [isHost, authenticateSpotify]);
-
 	const leaveButtonPressed = async () => {
 		await leaveRoom();
 		leaveRoomCallback();
@@ -80,7 +74,7 @@ function Room({ leaveRoomCallback }) {
 					votesToSkip={votesToSkip}
 					guestCanPause={guestCanPause}
 					roomCode={roomCode}
-					updateCallback={getRoomDetails}
+					updateCallback={fetchRoomDetails}
 				/>
 			</Grid>
 			<Grid item xs={12} align="center">
@@ -98,7 +92,7 @@ function Room({ leaveRoomCallback }) {
 	if (showSettings) {
 		return renderSettings();
 	}
-
+// ...song is the current song object, ... is the spread operator that copies the properties of the song object 
 	return (
 		<Grid container spacing={1}>
 			<Grid item xs={12} align="center">

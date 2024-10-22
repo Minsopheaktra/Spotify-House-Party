@@ -7,9 +7,11 @@ from .utils import *
 from room_api.models import Room
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 import logging
 from dotenv import load_dotenv
+import urllib.parse
 
 load_dotenv()
 CLIENT_ID = os.getenv("CLIENT_ID")
@@ -19,14 +21,17 @@ REDIRECT_URI = os.getenv("REDIRECT_URI")
 logger = logging.getLogger(__name__)
 
 class AuthURL(APIView):
-    def get(self, request, fornat=None):
+    def get(self, request, format=None):
         scopes = 'user-read-playback-state user-modify-playback-state user-read-currently-playing'
+
+        state = urllib.parse.quote(str(request.user.id))
 
         url = Request('GET', 'https://accounts.spotify.com/authorize', params={
             'scope': scopes,
             'response_type': 'code',
             'redirect_uri': REDIRECT_URI,
-            'client_id': CLIENT_ID
+            'client_id': CLIENT_ID,
+            'state': state
         }).prepare().url
 
         return Response({'url': url}, status=status.HTTP_200_OK)
@@ -34,6 +39,7 @@ class AuthURL(APIView):
 def spotify_callback(request, format=None):
     code = request.GET.get("code")
     error = request.GET.get("error")
+    state = request.GET.get("state")
 
     response = post('https://accounts.spotify.com/api/token', data={
         'grant_type': 'authorization_code',
@@ -43,27 +49,48 @@ def spotify_callback(request, format=None):
         'client_secret': CLIENT_SECRET
     }).json()
 
-
     access_token = response.get("access_token")
     token_type = response.get("token_type")
     refresh_token = response.get("refresh_token")
     expires_in = response.get("expires_in")
     error = response.get("error")
-
+    if error:
+        return redirect("http://localhost:5173/error")
+    if state:
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=int(state))
+        except (User.DoesNotExist, ValueError):
+            user = request.user
+    else:
+        user = request.user
     update_or_create_user_tokens(
-        request.user, access_token, token_type, expires_in, refresh_token
+        user, access_token, token_type, expires_in, refresh_token
     )
     return redirect("http://localhost:5173")
 
-class IsAuthenticated(APIView):
+class IsSpotifyAuthenticated(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, format=None):
-        user_id = request.user.id  # Retrieve user from JWT token
-        is_authenticated = is_spotify_authenticated(user_id)
+        is_authenticated = is_spotify_authenticated(request.user)
         return Response({"status": is_authenticated}, status=status.HTTP_200_OK)
+    
+class SpotifyUserProfile(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request, format=None):
+        return Response(execute_spotify_user_profile(request.user), status=status.HTTP_200_OK)
+    
+class SpotifyLogout(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, format=None):
+        spotify_logout(request.user)
+        return Response({"message": "Spotify account disconnected successfully"}, status=status.HTTP_200_OK)
 
 class CurrentSong(APIView):
     authentication_classes = [JWTAuthentication]
@@ -71,23 +98,21 @@ class CurrentSong(APIView):
 
     def get(self, request, format=None):
         user = request.user
-        room = Room.objects.filter(
-            host=user
-        ).first()
-        room_code = room.code
+        room = Room.objects.filter(host=user).first()
+        
+        if not room:
+            # If user is not a host, check if they're in a room as a guest
+            room = Room.objects.filter(users=user).first()
+            if not room:
+                return Response({"error": "You are not in any room."}, status=status.HTTP_404_NOT_FOUND)
+
         host = room.host
-
-        if not room_code:
-            return Response({"detail": "Room code not found."}, status=status.HTTP_400_BAD_REQUEST)
-
-        if room is None:
-            return Response({"detail": "Room not found."}, status=status.HTTP_404_NOT_FOUND)
-
         endpoint = "player/currently-playing"
-        response = execute_spotify_api_request(host.id, endpoint)
+        response = execute_spotify_api_request(host, endpoint)
 
         if "error" in response or "item" not in response:
             return Response({}, status=status.HTTP_204_NO_CONTENT)
+
 
         item = response.get("item")
         duration = item.get("duration_ms")
@@ -110,60 +135,42 @@ class CurrentSong(APIView):
 
         return Response(song, status=status.HTTP_200_OK)
 
+class PauseSong(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
-# class PauseSong(APIView):
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated]
+    def put(self, request, format=None):
+        user = request.user
+        room = Room.objects.filter(host=user).first()
+        
+        if not room:
+            # If user is not a host, check if they're in a room as a guest
+            room = Room.objects.filter(users=user).first()
+            if not room:
+                return Response({"error": "You are not in any room."}, status=status.HTTP_404_NOT_FOUND)
 
-#     def put(self, response, format=None):
-#         user = request.user
-#         room = Room.objects.filter(
-#             host=user
-#         ).first()
-#         room_code = room.code
+        if room.host == user or (room.guest_can_pause and user in room.users.all()):
+            pause_song(room.host)
+            return Response({}, status=status.HTTP_204_NO_CONTENT)
 
-#         if not room_code:
-#             return Response(
-#                 {"message": "Room code not found in session."},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
+        return Response({"error": "You don't have permission to pause."}, status=status.HTTP_403_FORBIDDEN)
 
-#         room = Room.objects.filter(code=room_code).first()
-#         if not room:
-#             return Response(
-#                 {"message": "Room not found."}, status=status.HTTP_404_NOT_FOUND
-#             )
+class PlaySong(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
-#         # Check if the user is the host or guest can pause
-#         if self.request.session.session_key == room.host or room.guest_can_pause:
-#             pause_song(room.host)
-#             return Response({}, status=status.HTTP_204_NO_CONTENT)
+    def put(self, request, format=None):
+        user = request.user
+        room = Room.objects.filter(host=user).first()
+        
+        if not room:
+            # If user is not a host, check if they're in a room as a guest
+            room = Room.objects.filter(users=user).first()
+            if not room:
+                return Response({"error": "You are not in any room."}, status=status.HTTP_404_NOT_FOUND)
 
-#         return Response({}, status=status.HTTP_403_FORBIDDEN)
+        if room.host == user or (room.guest_can_pause and user in room.users.all()):
+            play_song(room.host)
+            return Response({}, status=status.HTTP_204_NO_CONTENT)
 
-
-# class PlaySong(APIView):
-#     def put(self, response, format=None):
-#         user = request.user
-#         room = Room.objects.filter(
-#             host=user
-#         ).first()
-#         room_code = room.code
-#         if not room_code:
-#             return Response(
-#                 {"message": "Room code not found in session."},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-
-#         room = Room.objects.filter(code=room_code).first()
-#         if not room:
-#             return Response(
-#                 {"message": "Room not found."}, status=status.HTTP_404_NOT_FOUND
-#             )
-
-#         # Check if the user is the host or guest can play
-#         if self.request.session.session_key == room.host or room.guest_can_pause:
-#             play_song(room.host)
-#             return Response({}, status=status.HTTP_204_NO_CONTENT)
-
-#         return Response({}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"error": "You don't have permission to play."}, status=status.HTTP_403_FORBIDDEN)

@@ -20,7 +20,6 @@ function RegisterAndLogout() {
 
 function App() {
   return (
-    <div className="center">
       <Router>
         <Routes>
           {/* Protected HomePage Route */}
@@ -42,7 +41,6 @@ function App() {
           <Route path="/*" element={<NotFound />} />
         </Routes>
       </Router>
-    </div>
   );
 }
 

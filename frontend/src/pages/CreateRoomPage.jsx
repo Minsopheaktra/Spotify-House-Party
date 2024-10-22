@@ -28,6 +28,12 @@ function CreateRoomPage({
 	const [votesToSkip, setVotesToSkip] = useState(defaultVotesToSkip);
 	const [errorMsg, setErrorMsg] = useState("");
 	const [successMsg, setSuccessMsg] = useState("");
+	
+    // Add this useEffect hook
+    // useEffect(() => {
+    //     setGuestCanPause(defaultGuestCanPause);
+    //     setVotesToSkip(defaultVotesToSkip);
+    // }, [defaultGuestCanPause, defaultVotesToSkip]);
 
 	function handleVotesChange(e) {
 		setVotesToSkip(Number(e.target.value));
@@ -61,6 +67,7 @@ function CreateRoomPage({
 			};
 			await updateRoom(roomData); // Call the updateRoom function
 			setSuccessMsg("Room Updated Successfully!");
+			updateCallback();
 		} catch (error) {
 			console.error("Error Function updating room:", error);
 			setErrorMsg("Error Function Updating Room: " + error.message);
@@ -191,53 +198,3 @@ function CreateRoomPage({
 }
 
 export default CreateRoomPage;
-
-
-	// async function handleRoomButtonPressed() {
-	// 	const requestOptions = {
-	// 		method: "POST",
-	// 		headers: { "Content-Type": "application/json" },
-	// 		body: JSON.stringify({
-	// 			votes_to_skip: votesToSkip,
-	// 			guest_can_pause: guestCanPause,
-	// 		}),
-	// 	};
-	// 	try {
-	// 		const response = await fetch(`${import.meta.env.VITE_API_URL}/api/create-room`, requestOptions);
-	// 		if (!response.ok) {
-	// 			throw new Error("Network response was not ok");
-	// 		}
-	// 		const data = await response.json();
-	// 		navigate("/room/" + data.code);
-	// 	} catch (error) {
-	// 		console.error(
-	// 			"There was a problem with the fetch operation:",
-	// 			error.message
-	// 		);
-	// 		setErrorMsg("Error creating room: " + error.message);
-	// 	}
-	// }
-
-		// async function handleUpdateButtonPressed() {
-	// 	const requestOptions = {
-	// 		method: "PATCH",
-	// 		headers: { "Content-Type": "application/json" },
-	// 		body: JSON.stringify({
-	// 			votes_to_skip: votesToSkip,
-	// 			guest_can_pause: guestCanPause,
-	// 			code: roomCode,
-	// 		}),
-	// 	};
-	// 	try {
-	// 		const response = await fetch(`${import.meta.env.VITE_API_URL}/api/update-room`, requestOptions);
-	// 		if (response.ok) {
-	// 			setSuccessMsg("Room Updated Successfully!");
-	// 			updateCallback();
-	// 		} else {
-	// 			setErrorMsg("Error Updating Room...");
-	// 		}
-	// 		updateCallback();
-	// 	} catch (error) {
-	// 		setErrorMsg("Error Updating Room: " + error.message);
-	// 	}
-	// }
