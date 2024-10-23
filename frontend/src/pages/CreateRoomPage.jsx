@@ -29,12 +29,6 @@ function CreateRoomPage({
 	const [errorMsg, setErrorMsg] = useState("");
 	const [successMsg, setSuccessMsg] = useState("");
 	
-    // Add this useEffect hook
-    // useEffect(() => {
-    //     setGuestCanPause(defaultGuestCanPause);
-    //     setVotesToSkip(defaultVotesToSkip);
-    // }, [defaultGuestCanPause, defaultVotesToSkip]);
-
 	function handleVotesChange(e) {
 		setVotesToSkip(Number(e.target.value));
 	}

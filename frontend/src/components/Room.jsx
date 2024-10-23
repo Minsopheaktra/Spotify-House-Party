@@ -3,8 +3,9 @@ import { Grid, Button, Typography } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import CreateRoomPage from "../pages/CreateRoomPage.jsx";
 import MusicPlayer from "./MusicPlayer";
-import { getRoomDetails, leaveRoom } from "../roomApi.js"
-import {authenticateSpotify, getCurrentSong} from "../spotifyApi.js"
+import { getRoomDetails, leaveRoom } from "../roomApi.js";
+import { authenticateSpotify, getCurrentSong } from "../spotifyApi.js";
+import SpotifyPlayer from "./SpotifyPlayer";
 
 function Room({ leaveRoomCallback }) {
 	const [votesToSkip, setVotesToSkip] = useState(2);
@@ -19,10 +20,10 @@ function Room({ leaveRoomCallback }) {
 
 	useEffect(() => {
 		const intervalId = setInterval(() => {
-		  getCurrentSong().then(setSong);
+			getCurrentSong().then(setSong);
 		}, 1000);
 		return () => clearInterval(intervalId);
-	  }, []);
+	}, []);
 
 	const updateSongStatus = (isPlaying) => {
 		setSong((prevSong) => ({
@@ -33,25 +34,25 @@ function Room({ leaveRoomCallback }) {
 
 	const fetchRoomDetails = useCallback(async () => {
 		try {
-		  const data = await getRoomDetails(roomCode);
-		  setVotesToSkip(data.votes_to_skip);
-		  setGuestCanPause(data.guest_can_pause);
-		  setIsHost(data.is_host);
+			const data = await getRoomDetails(roomCode);
+			setVotesToSkip(data.votes_to_skip);
+			setGuestCanPause(data.guest_can_pause);
+			setIsHost(data.is_host);
 		} catch (error) {
-		  console.error("Error fetching room details:", error);
-		  leaveRoomCallback();
-		  navigate("/");
+			console.error("Error fetching room details:", error);
+			leaveRoomCallback();
+			navigate("/");
 		}
-	  }, [roomCode, leaveRoomCallback, navigate]);
+	}, [roomCode, leaveRoomCallback, navigate]);
 
-	  useEffect(() => {
+	useEffect(() => {
 		fetchRoomDetails();
-	  }, [fetchRoomDetails]);
+	}, [fetchRoomDetails]);
 
 	const leaveButtonPressed = async () => {
 		await leaveRoom();
 		leaveRoomCallback();
-		navigate('/');
+		navigate("/");
 	};
 
 	const renderSettingsButton = () => (
@@ -92,15 +93,38 @@ function Room({ leaveRoomCallback }) {
 	if (showSettings) {
 		return renderSettings();
 	}
-// ...song is the current song object, ... is the spread operator that copies the properties of the song object 
+	// ...song is the current song object, ... is the spread operator that copies the properties of the song object
 	return (
 		<Grid container spacing={1}>
 			<Grid item xs={12} align="center">
 				<Typography variant="h4" component="h4">
-					Code: {roomCode}
+					Invite people with code: {roomCode}
 				</Typography>
 			</Grid>
-			<MusicPlayer {...song} updateSongStatus={updateSongStatus} />
+			<Grid item xs={12} align="center">
+				{isHost ? (
+					song.title ? (
+						<MusicPlayer
+							{...song}
+							updateSongStatus={updateSongStatus}
+						/>
+					) : (
+						<Typography variant="h5" component="h5" align="center">
+							Start playing a song to begin the party!
+						</Typography>
+					)
+				) : (
+					<>
+						<MusicPlayer
+							{...song}
+							updateSongStatus={updateSongStatus}
+						/>
+						{!isHost && (
+							<SpotifyPlayer currentSong={song} isHost={isHost} />
+						)}
+					</>
+				)}
+			</Grid>
 			{isHost && renderSettingsButton()}
 			<Grid item xs={12} align="center">
 				<Button

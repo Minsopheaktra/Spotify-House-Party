@@ -46,7 +46,7 @@ function MusicPlayer({
 		return (
 			<Grid container alignItems="center" justifyContent="center">
 				<Typography variant="h5" component="h5" align="center">
-					Start Playing Some Song!!!
+					Waiting for the host to play a song...
 				</Typography>
 			</Grid>
 		);
@@ -90,28 +90,3 @@ function MusicPlayer({
 }
 
 export default MusicPlayer;
-
-
-	// // Function to pause the song
-	// const pauseSong = async () => {
-	// 	const requestOptions = {
-	// 		method: "PUT",
-	// 		headers: { "Content-Type": "application/json" },
-	// 	};
-	// 	const response = await fetch(`${import.meta.env.VITE_API_URL}/spotify/pause`, requestOptions);
-	// 	if (response.ok) {
-	// 		updateSongStatus(false); // Update the state to reflect paused status
-	// 	}
-	// };
-
-	// // Function to play the song
-	// const playSong = async () => {
-	// 	const requestOptions = {
-	// 		method: "PUT",
-	// 		headers: { "Content-Type": "application/json" },
-	// 	};
-	// 	const response = await fetch(`${import.meta.env.VITE_API_URL}/spotify/play`, requestOptions);
-	// 	if (response.ok) {
-	// 		updateSongStatus(true); // Update the state to reflect playing status
-	// 	}
-	// };

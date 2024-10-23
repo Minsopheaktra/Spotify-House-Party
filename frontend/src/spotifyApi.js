@@ -15,6 +15,16 @@ export const authenticateSpotify = async () => {
 	}
 };
 
+export const getSpotifyAccessToken = async () => {
+	try {
+		const response = await api.get("/spotify/get-token");
+		return response.data.access_token;
+	} catch (error) {
+		console.error("Error API fetching Spotify access token:", error);
+		throw error;
+	}
+};
+
 // Function to logout from Spotify
 export const logoutFromSpotify = async () => {
 	localStorage.removeItem("spotifyToken");
@@ -80,4 +90,38 @@ export const playSong = async () => {
 	}
 };
 
-export default { authenticateSpotify, getCurrentSong, pauseSong, playSong };
+export const playSongAlong = async (uri, positionMs) => {
+	try {
+		await api.put("/spotify/play-along", { uri, position_ms: positionMs });
+	} catch (error) {
+		console.error("Error playing song along:", error);
+	}
+};
+
+export const pauseSongAlong = async () => {
+	try {
+		await api.put("/spotify/pause-along");
+	} catch (error) {
+		console.error("Error pausing song along:", error);
+	}
+};
+
+export const checkSpotifyPremium = async () => {
+	try {
+		const response = await api.get("/spotify/check-premium");
+		return response.data.isPremium;
+	} catch (error) {
+		console.error("Error checking Spotify Premium status:", error);
+		return false;
+	}
+};
+
+export default {
+	authenticateSpotify,
+	getCurrentSong,
+	pauseSong,
+	playSong,
+	pauseSongAlong,
+	playSongAlong,
+	checkSpotifyPremium,
+};
