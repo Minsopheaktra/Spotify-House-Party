@@ -1,0 +1,30 @@
+# Python related files (backend)
+*.pyc
+__pycache__/
+db.sqlite3
+
+# Environment variables
+.env
+
+# Virtual environment
+_venv/
+venv/
+
+# Django static files
+/static/
+/media/
+
+# Node modules (frontend)
+node_modules/
+
+# React build directories
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# macOS specific
+.DS_Store
