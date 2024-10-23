@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class AuthURL(APIView):
     def get(self, request, format=None):
-        scopes = 'user-read-playback-state user-modify-playback-state user-read-currently-playing'
+        scopes = 'user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing'
 
         state = urllib.parse.quote(str(request.user.id))
 
@@ -69,6 +69,14 @@ def spotify_callback(request, format=None):
     )
     return redirect("http://localhost:5173")
 
+class GetSpotifyAccessToken(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, format=None):
+        access_token = get_user_tokens(request.user).access_token
+        return Response({"access_token": access_token}, status=status.HTTP_200_OK)
+
 class IsSpotifyAuthenticated(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -84,6 +92,15 @@ class SpotifyUserProfile(APIView):
     def get(self, request, format=None):
         return Response(execute_spotify_user_profile(request.user), status=status.HTTP_200_OK)
     
+class CheckSpotifyPremium(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_profile = execute_spotify_user_profile(request.user)
+        is_premium = user_profile.get('product') == 'premium'
+        return Response({"isPremium": is_premium}, status=status.HTTP_200_OK)
+    
 class SpotifyLogout(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -98,21 +115,20 @@ class CurrentSong(APIView):
 
     def get(self, request, format=None):
         user = request.user
-        room = Room.objects.filter(host=user).first()
-        
-        if not room:
-            # If user is not a host, check if they're in a room as a guest
-            room = Room.objects.filter(users=user).first()
-            if not room:
-                return Response({"error": "You are not in any room."}, status=status.HTTP_404_NOT_FOUND)
-
-        host = room.host
+        host_room = Room.objects.filter(host=user).first()
+        user_room = Room.objects.filter(users=user).first()
+        if not user_room and not host_room:
+            return Response({"error": "You are not in any room."}, status=status.HTTP_404_NOT_FOUND)
+        # Determine the host of the room based on the user's role
+        if host_room:
+            host = host_room.host
+        else:
+            host = user_room.host
         endpoint = "player/currently-playing"
         response = execute_spotify_api_request(host, endpoint)
 
         if "error" in response or "item" not in response:
             return Response({}, status=status.HTTP_204_NO_CONTENT)
-
 
         item = response.get("item")
         duration = item.get("duration_ms")
@@ -174,3 +190,35 @@ class PlaySong(APIView):
             return Response({}, status=status.HTTP_204_NO_CONTENT)
 
         return Response({"error": "You don't have permission to play."}, status=status.HTTP_403_FORBIDDEN)
+
+class PlaySongAlong(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        uri = request.data.get("uri")
+        position_ms = request.data.get("position_ms")
+
+        # If the URI is actually just a track ID, convert it to a proper Spotify URI
+        if not uri.startswith("spotify:"):
+            uri = f"spotify:track:{uri}"
+
+        endpoint = "player/play"
+        data = {
+            "uris": [uri],
+            "position_ms": position_ms
+        }
+        response = execute_spotify_api_request(request.user, endpoint, put_=True, data_=data)
+        return Response(response, status=status.HTTP_204_NO_CONTENT)
+
+class PauseSongAlong(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        endpoint = "player/pause"
+        response = execute_spotify_api_request(request.user, endpoint, put_=True)
+        
+        if 'Error' in response:
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+        return Response(response, status=status.HTTP_204_NO_CONTENT)

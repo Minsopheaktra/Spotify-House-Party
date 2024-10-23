@@ -94,27 +94,33 @@ def spotify_logout(user):
     tokens = get_user_tokens(user)
     if tokens:
         tokens.delete()
-        logger.info(f"Spotify tokens deleted for user {user}")
     else:
         logger.info(f"No Spotify tokens found for user {user}")
 
 # Function to execute Spotify API requests
-def execute_spotify_api_request(host, endpoint, post_=False, put_=False):
+def execute_spotify_api_request(host, endpoint, post_=False, put_=False, data_=None):
     tokens = get_user_tokens(host)
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + tokens.access_token,
     }
-    if post_:
-        post(BASE_URL + endpoint, headers=headers)
-    if put_:
-        put(BASE_URL + endpoint, headers=headers)
-
-    response = get(BASE_URL + endpoint, {}, headers=headers)
+    url = BASE_URL + endpoint
     try:
-        return response.json()
-    except:
-        return {"Error": "Issue with request"}
+        if post_:
+            response = post(url, headers=headers, json=data_)
+        elif put_:
+            response = put(url, headers=headers, json=data_)
+        else:
+            response = get(url, {}, headers=headers)
+        
+        response.raise_for_status()  # Raise an exception for non-2xx status codes
+        
+        if response.text:  # Check if there's content in the response
+            return response.json()
+        else:
+            return {"message": "Success, no content"}
+    except Exception as e:
+        return {"Error": f"Issue with request: {str(e)}"}
 
 # Function to play a song
 def play_song(session_id):
