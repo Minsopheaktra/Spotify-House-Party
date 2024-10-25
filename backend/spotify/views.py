@@ -55,7 +55,7 @@ def spotify_callback(request, format=None):
     expires_in = response.get("expires_in")
     error = response.get("error")
     if error:
-        return redirect("http://localhost:5173/error")
+        return redirect("https://spotify-house-party.vercel.app/error")
     if state:
         User = get_user_model()
         try:
@@ -67,7 +67,7 @@ def spotify_callback(request, format=None):
     update_or_create_user_tokens(
         user, access_token, token_type, expires_in, refresh_token
     )
-    return redirect("http://localhost:5173")
+    return redirect("https://spotify-house-party.vercel.app/")
 
 class GetSpotifyAccessToken(APIView):
     authentication_classes = [JWTAuthentication]
