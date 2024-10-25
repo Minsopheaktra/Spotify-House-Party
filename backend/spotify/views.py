@@ -67,7 +67,7 @@ def spotify_callback(request, format=None):
     update_or_create_user_tokens(
         user, access_token, token_type, expires_in, refresh_token
     )
-    return redirect("https://spotify-house-party.vercel.app/")
+    return redirect("https://spotify-house-party.vercel.app")
 
 class GetSpotifyAccessToken(APIView):
     authentication_classes = [JWTAuthentication]
